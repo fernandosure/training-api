@@ -15,6 +15,7 @@ import os
 from app import create_app, db
 from app.models import Provider, ProviderBranch, ProviderBranchEmployee, TrainingBatch, TrainingSession, TrainingSessionAssistant, User
 from flask.ext.script import Manager, Shell
+from gunicorn.app.base import Application
 
 app = create_app(os.getenv('FLASK_CONFIG') or 'default')
 manager = Manager(app)
@@ -33,6 +34,29 @@ def make_shell_context():
 
 manager.add_command('shell', Shell(make_context=make_shell_context))
 # manager.add_command('db', MigrateCommand)
+
+
+@manager.option('-h', '--host', dest='host', default='0.0.0.0')
+@manager.option('-p', '--port', dest='port', type=int, default=5000)
+@manager.option('-w', '--workers', dest='workers', type=int, default=10)
+@manager.option('-t', '--timeout', dest='timeout', type=int, default=90)
+def gunicorn(host, port, workers, timeout):
+    """Start the Server with Gunicorn"""
+    from gunicorn.app.base import Application
+
+    class FlaskApplication(Application):
+        def init(self, parser, opts, args):
+            return {
+                'bind': '{0}:{1}'.format(host, port),
+                'workers': workers, 'timeout': timeout
+
+            }
+
+        def load(self):
+            return app
+
+    application = FlaskApplication()
+    return application.run()
 
 
 @manager.command

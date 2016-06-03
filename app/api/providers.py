@@ -5,7 +5,7 @@ from ..models import Provider, ProviderBranch, ProviderBranchEmployee
 from ..logger import log
 
 
-@api.route('/providers')
+@api.route('/training/providers')
 def get_providers(): 
 
     providers = Provider.query.order_by(Provider.name.asc())
@@ -15,7 +15,7 @@ def get_providers():
     })
 
 
-@api.route('/providers/<string:slug>/branches')
+@api.route('/training/providers/<string:slug>/branches')
 def get_branches(slug):
 
     provider = Provider.query.filter(Provider.slug == slug).first_or_404()
@@ -26,7 +26,7 @@ def get_branches(slug):
     })
 
 
-@api.route('/providers/<string:slug>/branches/<int:branch_id>/employees', methods=['GET'])
+@api.route('/training/providers/<string:slug>/branches/<int:branch_id>/employees', methods=['GET'])
 def get_employees(slug, branch_id):
 
     log.info('get_employees: slug %s branch_id: %s' % (slug, branch_id))
@@ -40,7 +40,7 @@ def get_employees(slug, branch_id):
     })
 
 
-@api.route('/providers/<string:slug>/branches/<int:branch_id>/employees', methods=['POST'])
+@api.route('/training/providers/<string:slug>/branches/<int:branch_id>/employees', methods=['POST'])
 def new_employee(slug, branch_id):
 
     log.info('new_employee: slug %s branch_id: %s' % (slug, branch_id))
