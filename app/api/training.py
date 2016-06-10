@@ -1,11 +1,26 @@
 from flask import jsonify, request, g, current_app, url_for
 from . import api
 from .. import db
-from ..models import ProviderBranchEmployee, TrainingBatch, TrainingSession, TrainingSessionAssistant
+from ..models import ProviderBranchEmployee, TrainingBatch, TrainingSession, TrainingSessionAssistant, TrainingScenario, TrainingSessionAssistantScore
 from ..logger import log
 from ..exceptions import ValidationError
 from ..s3 import upload_to_s3
 import base64
+
+
+#############################
+# GET ALL TRAINING SCENARIOS
+#############################
+@api.route('/training/scenarios')
+def get_scenarios():
+    log.info('get_scenarios')
+
+    scenarios = TrainingScenario.query.order_by(TrainingScenario.description)
+
+    return jsonify({
+        'content': [scenario.to_json() for scenario in scenarios],
+        'total_elements': scenarios.count()
+    })
 
 
 #############################
@@ -109,14 +124,42 @@ def add_assistants_to_training_session(batch_id, session_id):
     log.info('assistants: %s' % len(assistants))
 
     for i, assistant in enumerate(assistants):
-        if assistant['score'] is None:
-            raise ValidationError('score on assistant #%s' % i + 1)
 
-        if assistant['score'] < 0 or assistant['score'] > 100:
-            raise ValidationError('score on assistant #%s is outside of permitted scope [0-100]' % i)
+        employee = session.provider_branch.employees.filter(ProviderBranchEmployee.id == assistant['employee_id']).first()
+        if employee is None:
+            raise ValidationError('Employee %s does not exist' % assistant['employee_id'])
 
-        session_assistant = TrainingSessionAssistant(score=assistant['score'], provider_branch_employee_id=assistant['employee_id'])
+        if assistant['results'] is None:
+            raise ValidationError('scores array on assistant #%s' % assistant['employee_id'])
+
+
+        session_assistant = TrainingSessionAssistant()
+        session_assistant.employee = employee
         session_assistant.session = session
+
+        log.info('Training session id: %s employee: %s', (session.id, employee.name))
+
+        for x, result in enumerate(assistant['results']):
+
+            if result['scenario_id'] is None:
+                raise ValidationError('scenario_id is null in result [%s] of assistant #%s' % (x + 1, assistant['employee_id']))
+
+            scenario = TrainingScenario.query.filter(TrainingScenario.id == result['scenario_id']).first()
+            if scenario is None:
+                raise ValidationError('scenario in result [%s] of assistant #%s does not exist' % (x + 1, assistant['employee_id']))
+
+            if result['score'] is None:
+                raise ValidationError('score in result [%s] of assistant #%s is null' % (x + 1, assistant['employee_id']))
+
+            if result['score'] < 0 or result['score'] > 100:
+                raise ValidationError('score in result [%s] of assistant #%s is outside of permitted scope [0-100]' % (x + 1, assistant['employee_id']))
+
+            scenario_score = TrainingSessionAssistantScore(score=result['score'])
+            scenario_score.scenario = scenario
+            session_assistant.scores.append(scenario_score)
+
+            log.info('Training session id: %s employee: %s scenario: %s score %s', (session.id, employee.name, scenario.description, scenario_score.score))
+
         db.session.add(session_assistant)
 
     db.session.commit()

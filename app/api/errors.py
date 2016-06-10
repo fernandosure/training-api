@@ -42,7 +42,6 @@ def forbidden(message):
 @api.errorhandler(ValidationError)
 def validation_error(e):
     log.error('Validation Error %s', e)
-    # return bad_request(e.args[0])
     response = jsonify({'error': 'validation_error', 'message': e.args[0]})
     response.status_code = 422
     return response

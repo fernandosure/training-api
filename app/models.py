@@ -54,6 +54,7 @@ class ProviderBranch(AuditMixin, db.Model):
 
 class ProviderBranchEmployee(AuditMixin, db.Model):
     __tablename__ = 'provider_branch_employees'
+    __table_args__ = {'schema': 'training'}
     id = db.Column(db.Integer, primary_key=True)
     provider_branch_id = db.Column(db.Integer, db.ForeignKey(ProviderBranch.id), nullable=False)
     name = db.Column(db.String, nullable=False)
@@ -100,8 +101,25 @@ class User(AuditMixin, db.Model):
         return '<User %s %s>' % (self.first_name, self.last_name)
 
 
+class TrainingScenario(AuditMixin, db.Model):
+    __tablename__ = 'training_scenarios'
+    __table_args__ = {'schema': 'training'}
+    id = db.Column(db.Integer, primary_key=True)
+    description = db.Column(db.String)
+
+    def to_json(self):
+        return {
+            'id': self.id,
+            'description': self.description
+        }
+
+    def __repr__(self):
+        return '<TrainingScenario %s >' % self.description
+
+
 class TrainingBatch (AuditMixin, db.Model):
     __tablename__ = 'training_batches'
+    __table_args__ = {'schema': 'training'}
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, nullable=False)
 
@@ -130,6 +148,7 @@ class TrainingBatch (AuditMixin, db.Model):
 
 class TrainingSession(AuditMixin, db.Model):
     __tablename__ = 'training_sessions'
+    __table_args__ = {'schema': 'training'}
     id = db.Column(db.Integer, primary_key=True)
 
     teacher_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
@@ -145,10 +164,11 @@ class TrainingSession(AuditMixin, db.Model):
     # @aggregated('assistants', db.Column(db.Integer))
     # def avg_score(self):
     #     return func.avg(TrainingSessionAssistant.score)
-    @hybrid_property
-    def avg_score(self):
-        # return func.avg(TrainingSessionAssistant.score)
-        return db.session.query(func.avg(TrainingSessionAssistant.score)).filter(TrainingSessionAssistant.training_session_id == self.id).scalar()
+
+    # @hybrid_property
+    # def avg_score(self):
+    #     # return func.avg(TrainingSessionAssistant.score)
+    #     return db.session.query(func.avg(TrainingSessionAssistant.score)).filter(TrainingSessionAssistant.training_session_id == self.id).scalar()
 
     # relations
     teacher = db.relationship('User', backref='training_sessions')
@@ -164,7 +184,7 @@ class TrainingSession(AuditMixin, db.Model):
             'comments': self.comments,
             'signature_url': self.signature_url,
             'teacher': self.teacher.to_json(),
-            'avg_score': self.avg_score,
+            # 'avg_score': self.avg_score,
             'assistants': [assistant.to_json() for assistant in self.assistants]
         }
 
@@ -195,14 +215,20 @@ class TrainingSession(AuditMixin, db.Model):
 
 class TrainingSessionAssistant(AuditMixin, db.Model):
     __tablename__ = 'training_session_assistants'
-    id = db.Column(db.Integer, primary_key=True, nullable=False)
+    __table_args__ = {'schema': 'training'}
 
+    id = db.Column(db.Integer, primary_key=True, nullable=False)
     training_session_id = db.Column(db.Integer, db.ForeignKey(TrainingSession.id), nullable=False)
     provider_branch_employee_id = db.Column(db.Integer, db.ForeignKey(ProviderBranchEmployee.id), nullable=False)
-    score = db.Column(db.Integer, nullable=False)
 
     employee = db.relationship('ProviderBranchEmployee')
     # training_session = db.relationship('TrainingSession', backref='assistants')
+
+    scores = db.relationship('TrainingSessionAssistantScore', backref='training_session_assistant', lazy='dynamic')
+
+    @hybrid_property
+    def avg_score(self):
+        return db.session.query(func.avg(TrainingSessionAssistantScore.score)).filter(TrainingSessionAssistantScore.training_session_assistant_id == self.id).scalar()
 
     def to_json(self):
         return {
@@ -210,6 +236,29 @@ class TrainingSessionAssistant(AuditMixin, db.Model):
             'training_session_id': self.training_session_id,
             'provider_branch_employee_id': self.provider_branch_employee_id,
             'employee': self.employee.to_json(),
+            'score': self.avg_score
+        }
+
+    def __repr__(self):
+        return '<TrainingSessionAssistant %s %s>' % self.employee.name
+
+
+class TrainingSessionAssistantScore(AuditMixin, db.Model):
+    __tablename__ = 'training_session_assistant_scores'
+    __table_args__ = {'schema': 'training'}
+    id = db.Column(db.Integer, primary_key=True, nullable=False)
+
+    training_session_assistant_id = db.Column(db.Integer, db.ForeignKey(TrainingSessionAssistant.id), nullable=False)
+    training_scenario_id = db.Column(db.Integer, db.ForeignKey(TrainingScenario.id), nullable=False)
+    score = db.Column(db.Numeric, nullable=False)
+
+    scenario = db.relationship('TrainingScenario')
+
+    def to_json(self):
+        return {
+            'id': self.id,
+            'training_session_assistant_id': self.training_session_id,
+            'scenario': self.scenario.to_json(),
             'score': self.score
         }
 
