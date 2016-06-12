@@ -163,7 +163,7 @@ def add_assistants_to_training_session(batch_id, session_id):
         db.session.add(session_assistant)
 
     db.session.commit()
-    return jsonify(session.to_json()), 201
+    return jsonify(session.to_json()), 200
 
 
 ######################################
@@ -199,4 +199,4 @@ def finish_training_session(batch_id, session_id):
     session.comments = comments
     session.signature_url = result_url
     db.session.commit()
-    return jsonify(session.to_json()), 201
+    return jsonify(session.to_json()), 200

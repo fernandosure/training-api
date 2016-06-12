@@ -1,4 +1,3 @@
-
 CREATE SCHEMA training;
 
 CREATE TABLE training.provider_branch_employees (
@@ -54,14 +53,13 @@ CREATE TABLE training.training_session_assistant_scores(
   training_session_assistant_id INTEGER NOT NULL REFERENCES training.training_session_assistants(id),
   training_scenario_id INTEGER NOT NULL REFERENCES training.training_scenarios,
   score numeric not null
-)
+);
+
 
 
 INSERT INTO training.training_scenarios (description) values ('Agregar Productos');
-INSERT INTO training.training_scenarios (description) values ('Validar autorizacion express');
-
+INSERT INTO training.training_scenarios (description) values ('Validar autorizacion');
 INSERT INTO training.training_batches (name) values ('Primera Capacitacion');
 
-select * from training.training_batches
-
+select * from training.training_batches;
 select * from users;
